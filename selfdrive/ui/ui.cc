@@ -16,7 +16,7 @@ static bool calib_frame_to_full_frame(const UIState *s, float in_x, float in_y, 
   const float margin = 500.0f;
   const vec3 pt = (vec3){{in_x, in_y, in_z}};
   const vec3 Ep = matvecmul3(s->scene.view_from_calib, pt);
-  const vec3 KEp = matvecmul3(fcam_intrinsic_matrix, Ep);
+  const vec3 KEp = matvecmul3(s->wide_camera ? ecam_intrinsic_matrix : fcam_intrinsic_matrix, Ep);
 
   // Project.
   float x = KEp.v[0] / KEp.v[2];
@@ -58,10 +58,17 @@ void ui_init(UIState *s) {
   s->scene.started = false;
   s->status = STATUS_OFFROAD;
 
-  ui_nvg_init(s);
 
   s->last_frame = nullptr;
-  s->vipc_client_rear = new VisionIpcClient("camerad", VISION_STREAM_RGB_BACK, true);
+  s->wide_camera = false;
+
+#ifdef QCOM2
+  s->wide_camera = Params().getBool("EnableWideCamera");
+#endif
+
+  ui_nvg_init(s);
+
+  s->vipc_client_rear = new VisionIpcClient("camerad", s->wide_camera ? VISION_STREAM_RGB_WIDE : VISION_STREAM_RGB_BACK, true);
   s->vipc_client_front = new VisionIpcClient("camerad", VISION_STREAM_RGB_FRONT, true);
   s->vipc_client = s->vipc_client_rear;
 }
@@ -133,9 +140,13 @@ static void update_model(UIState *s, const cereal::ModelDataV2::Reader &model) {
   update_line_data(s, model_position, 0.5, 1.22, &scene.track_vertices, max_idx);
 }
 
-static void update_sockets(UIState *s) {
+static void update_sockets(UIState *s){
   SubMaster &sm = *(s->sm);
-  if (sm.update(0) == 0) return;
+  sm.update(0);
+}
+
+static void update_state(UIState *s) {
+  SubMaster &sm = *(s->sm);
 
   UIScene &scene = s->scene;
   if (scene.started && sm.updated("controlsState")) {
@@ -339,6 +350,7 @@ static void update_status(UIState *s) {
 void ui_update(UIState *s) {
   update_params(s);
   update_sockets(s);
+  update_state(s);
   update_status(s);
   update_alert(s);
   update_vision(s);
