@@ -155,7 +155,7 @@ class CarInterface(CarInterfaceBase):
       ret.lateralTuning.indi.outerLoopGainBP = [0.]
       ret.lateralTuning.indi.outerLoopGainV = [3.5]
       ret.lateralTuning.indi.timeConstantBP = [0.]
-      ret.lateralTuning.indi.timeConstantV = [1.6]
+      ret.lateralTuning.indi.timeConstantV = [1.7]
       ret.lateralTuning.indi.actuatorEffectivenessBP = [0.]
       ret.lateralTuning.indi.actuatorEffectivenessV = [1.8]
     elif candidate in [CAR.KIA_OPTIMA, CAR.KIA_OPTIMA_H]:
