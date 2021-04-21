@@ -151,11 +151,11 @@ class CarInterface(CarInterfaceBase):
       ret.steerActuatorDelay = 0.096
       ret.lateralTuning.init('indi')
       ret.lateralTuning.indi.innerLoopGainBP = [0.]
-      ret.lateralTuning.indi.innerLoopGainV = [4.4]
+      ret.lateralTuning.indi.innerLoopGainV = [4.5]
       ret.lateralTuning.indi.outerLoopGainBP = [0.]
-      ret.lateralTuning.indi.outerLoopGainV = [3.4]
+      ret.lateralTuning.indi.outerLoopGainV = [3.5]
       ret.lateralTuning.indi.timeConstantBP = [0.]
-      ret.lateralTuning.indi.timeConstantV = [1.4]
+      ret.lateralTuning.indi.timeConstantV = [1.6]
       ret.lateralTuning.indi.actuatorEffectivenessBP = [0.]
       ret.lateralTuning.indi.actuatorEffectivenessV = [1.8]
     elif candidate in [CAR.KIA_OPTIMA, CAR.KIA_OPTIMA_H]:
