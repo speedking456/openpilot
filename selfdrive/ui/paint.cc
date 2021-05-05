@@ -1,15 +1,24 @@
-#include "ui.hpp"
-
 #include <assert.h>
+#include <algorithm>
+
+#include "ui.h"
+#ifdef __APPLE__
+#include <OpenGL/gl3.h>
+#define NANOVG_GL3_IMPLEMENTATION
+#define nvgCreate nvgCreateGL3
+#else
+#include <GLES3/gl3.h>
+#define NANOVG_GLES3_IMPLEMENTATION
+#define nvgCreate nvgCreateGLES3
+#endif
+
 #include "common/util.h"
 #include "common/timing.h"
-#include <algorithm>
 
 #define NANOVG_GLES3_IMPLEMENTATION
 #include "nanovg_gl.h"
 #include "nanovg_gl_utils.h"
-#include "paint.hpp"
-#include "sidebar.hpp"
+#include "paint.h"
 
 // TODO: this is also hardcoded in common/transformations/camera.py
 // TODO: choose based on frame input size
@@ -230,7 +239,6 @@ static void ui_draw_vision_face(UIState *s) {
 }
 
 static void ui_draw_driver_view(UIState *s) {
-  s->sidebar_collapsed = true;
   const bool is_rhd = s->scene.is_rhd;
   const int width = 4 * s->viz_rect.h / 3;
   const Rect rect = {s->viz_rect.centerX() - width / 2, s->viz_rect.y, width, s->viz_rect.h};  // x, y, w, h
@@ -285,54 +293,6 @@ static void ui_draw_vision_header(UIState *s) {
   ui_draw_vision_event(s);
 }
 
-static void ui_draw_vision_footer(UIState *s) {
-  ui_draw_vision_face(s);
-}
-
-static float get_alert_alpha(float blink_rate) {
-  return 0.375 * cos((millis_since_boot() / 1000) * 2 * M_PI * blink_rate) + 0.625;
-}
-
-static void ui_draw_vision_alert(UIState *s) {
-  static std::map<cereal::ControlsState::AlertSize, const int> alert_size_map = {
-      {cereal::ControlsState::AlertSize::SMALL, 241},
-      {cereal::ControlsState::AlertSize::MID, 390},
-      {cereal::ControlsState::AlertSize::FULL, s->fb_h}};
-  const UIScene *scene = &s->scene;
-  bool longAlert1 = scene->alert_text1.length() > 15;
-
-  NVGcolor color = bg_colors[s->status];
-  color.a *= get_alert_alpha(scene->alert_blinking_rate);
-  const int alr_h = alert_size_map[scene->alert_size] + bdr_s;
-  const Rect rect = {.x = s->viz_rect.x - bdr_s,
-                     .y = s->fb_h - alr_h,
-                     .w = s->viz_rect.w + (bdr_s * 2),
-                     .h = alr_h};
-
-  ui_fill_rect(s->vg, rect, color);
-  ui_fill_rect(s->vg, rect, nvgLinearGradient(s->vg, rect.x, rect.y, rect.x, rect.bottom(),
-                                            nvgRGBAf(0.0, 0.0, 0.0, 0.05), nvgRGBAf(0.0, 0.0, 0.0, 0.35)));
-
-  nvgFillColor(s->vg, COLOR_WHITE);
-  nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BASELINE);
-
-  if (scene->alert_size == cereal::ControlsState::AlertSize::SMALL) {
-    ui_draw_text(s, rect.centerX(), rect.centerY() + 15, scene->alert_text1.c_str(), 40*2.5, COLOR_WHITE, "sans-semibold");
-  } else if (scene->alert_size == cereal::ControlsState::AlertSize::MID) {
-    ui_draw_text(s, rect.centerX(), rect.centerY() - 45, scene->alert_text1.c_str(), 48*2.5, COLOR_WHITE, "sans-bold");
-    ui_draw_text(s, rect.centerX(), rect.centerY() + 75, scene->alert_text2.c_str(), 36*2.5, COLOR_WHITE, "sans-regular");
-  } else if (scene->alert_size == cereal::ControlsState::AlertSize::FULL) {
-    nvgFontSize(s->vg, (longAlert1?72:96)*2.5);
-    nvgFontFace(s->vg, "sans-bold");
-    nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-    nvgTextBox(s->vg, rect.x, rect.y+(longAlert1?360:420), rect.w-60, scene->alert_text1.c_str(), NULL);
-    nvgFontSize(s->vg, 48*2.5);
-    nvgFontFace(s->vg,  "sans-regular");
-    nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-    nvgTextBox(s->vg, rect.x, rect.h-(longAlert1?300:360), rect.w-60, scene->alert_text2.c_str(), NULL);
-  }
-}
-
 static void ui_draw_vision_frame(UIState *s) {
   // Draw video frames
   glEnable(GL_SCISSOR_TEST);
@@ -353,8 +313,8 @@ static void ui_draw_vision(UIState *s) {
     }
     // Set Speed, Current Speed, Status/Events
     ui_draw_vision_header(s);
-    if (scene->alert_size == cereal::ControlsState::AlertSize::NONE) {
-      ui_draw_vision_footer(s);
+    if (s->scene.controls_state.getAlertSize() == cereal::ControlsState::AlertSize::NONE) {
+      ui_draw_vision_face(s);
     }
   } else {
     ui_draw_driver_view(s);
@@ -367,15 +327,10 @@ static void ui_draw_background(UIState *s) {
   glClear(GL_STENCIL_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 }
 
-void ui_draw(UIState *s) {
-  s->viz_rect = Rect{bdr_s, bdr_s, s->fb_w - 2 * bdr_s, s->fb_h - 2 * bdr_s};
-  if (!s->sidebar_collapsed) {
-    s->viz_rect.x += sbr_w;
-    s->viz_rect.w -= sbr_w;
-  }
+void ui_draw(UIState *s, int w, int h) {
+  s->viz_rect = Rect{bdr_s, bdr_s, w - 2 * bdr_s, h - 2 * bdr_s};
 
-  const bool draw_alerts = s->scene.started;
-  const bool draw_vision = draw_alerts && s->vipc_client->connected;
+  const bool draw_vision = s->scene.started && s->vipc_client->connected;
 
   // GL drawing functions
   ui_draw_background(s);
@@ -388,13 +343,9 @@ void ui_draw(UIState *s) {
 
   // NVG drawing functions - should be no GL inside NVG frame
   nvgBeginFrame(s->vg, s->fb_w, s->fb_h, 1.0f);
-  ui_draw_sidebar(s);
+
   if (draw_vision) {
     ui_draw_vision(s);
-  }
-
-  if (draw_alerts && s->scene.alert_size != cereal::ControlsState::AlertSize::NONE) {
-    ui_draw_vision_alert(s);
   }
 
   if (s->scene.driver_view && !s->vipc_client->connected) {
@@ -462,6 +413,10 @@ static const char frame_fragment_shader[] =
   "out vec4 colorOut;\n"
   "void main() {\n"
   "  colorOut = texture(uTexture, vTexCoord.xy);\n"
+#ifdef QCOM
+  "  vec3 dz = vec3(0.0627f, 0.0627f, 0.0627f);\n"
+  "  colorOut.rgb = ((vec3(1.0f, 1.0f, 1.0f) - dz) * colorOut.rgb / vec3(1.0f, 1.0f, 1.0f)) + dz;\n"
+#endif
   "}\n";
 
 static const mat4 device_transform = {{
@@ -521,19 +476,8 @@ void ui_nvg_init(UIState *s) {
 
   // init images
   std::vector<std::pair<const char *, const char *>> images = {
-      {"wheel", "../assets/img_chffr_wheel.png"},
-      {"trafficSign_turn", "../assets/img_trafficSign_turn.png"},
-      {"driver_face", "../assets/img_driver_face.png"},
-      {"button_settings", "../assets/images/button_settings.png"},
-      {"button_home", "../assets/images/button_home.png"},
-      {"battery", "../assets/images/battery.png"},
-      {"battery_charging", "../assets/images/battery_charging.png"},
-      {"network_0", "../assets/images/network_0.png"},
-      {"network_1", "../assets/images/network_1.png"},
-      {"network_2", "../assets/images/network_2.png"},
-      {"network_3", "../assets/images/network_3.png"},
-      {"network_4", "../assets/images/network_4.png"},
-      {"network_5", "../assets/images/network_5.png"},
+    {"wheel", "../assets/img_chffr_wheel.png"},
+    {"driver_face", "../assets/img_driver_face.png"},
   };
   for (auto [name, file] : images) {
     s->images[name] = nvgCreateImage(s->vg, file, 1);
