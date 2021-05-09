@@ -1,15 +1,19 @@
+#include "setup.h"
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <curl/curl.h>
 
+#include <QApplication>
 #include <QLabel>
 #include <QVBoxLayout>
-#include <QApplication>
 
-#include "setup.h"
-#include "offroad/networking.h"
-#include "widgets/input.h"
-#include "qt_window.h"
+#include <curl/curl.h>
+
+#include "selfdrive/hardware/hw.h"
+
+#include "selfdrive/ui/qt/offroad/networking.h"
+#include "selfdrive/ui/qt/widgets/input.h"
+#include "selfdrive/ui/qt_window.h"
 
 #define USER_AGENT "AGNOSSetup-0.1"
 
@@ -141,9 +145,9 @@ QWidget * Setup::download_failed() {
   QPushButton *reboot_btn = new QPushButton("Reboot");
   nav_layout->addWidget(reboot_btn, 0, Qt::AlignBottom | Qt::AlignLeft);
   QObject::connect(reboot_btn, &QPushButton::released, this, [=]() {
-#ifdef QCOM2
-    std::system("sudo reboot");
-#endif
+    if (Hardware::TICI()) {
+      std::system("sudo reboot");
+    }
   });
 
   QPushButton *restart_btn = new QPushButton("Start over");

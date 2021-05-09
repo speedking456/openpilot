@@ -1,22 +1,23 @@
-#include <string>
+#include "settings.h"
+
+#include <cassert>
 #include <iostream>
 #include <sstream>
-#include <cassert>
+#include <string>
 
 #ifndef QCOM
-#include "networking.h"
+#include "selfdrive/ui/qt/offroad/networking.h"
 #endif
-#include "settings.h"
-#include "widgets/input.h"
-#include "widgets/toggle.h"
-#include "widgets/offroad_alerts.h"
-#include "widgets/scrollview.h"
-#include "widgets/controls.h"
-#include "widgets/ssh_keys.h"
-#include "common/params.h"
-#include "common/util.h"
+#include "selfdrive/common/params.h"
+#include "selfdrive/common/util.h"
 #include "selfdrive/hardware/hw.h"
-#include "ui.h"
+#include "selfdrive/ui/qt/widgets/controls.h"
+#include "selfdrive/ui/qt/widgets/input.h"
+#include "selfdrive/ui/qt/widgets/offroad_alerts.h"
+#include "selfdrive/ui/qt/widgets/scrollview.h"
+#include "selfdrive/ui/qt/widgets/ssh_keys.h"
+#include "selfdrive/ui/qt/widgets/toggle.h"
+#include "selfdrive/ui/ui.h"
 
 TogglesPanel::TogglesPanel(QWidget *parent) : QWidget(parent) {
   QVBoxLayout *toggles_list = new QVBoxLayout();
@@ -49,13 +50,13 @@ TogglesPanel::TogglesPanel(QWidget *parent) : QWidget(parent) {
                                   "../assets/offroad/icon_shell.png",
                                   this));
 
-#ifndef QCOM2
-  toggles.append(new ParamControl("IsUploadRawEnabled",
-                                 "Upload Raw Logs",
-                                 "Upload full logs and full resolution video by default while on WiFi. If not enabled, individual logs can be marked for upload at my.comma.ai/useradmin.",
-                                 "../assets/offroad/icon_network.png",
-                                 this));
-#endif
+  if (!Hardware::TICI()) {
+    toggles.append(new ParamControl("IsUploadRawEnabled",
+                                    "Upload Raw Logs",
+                                    "Upload full logs and full resolution video by default while on WiFi. If not enabled, individual logs can be marked for upload at my.comma.ai/useradmin.",
+                                    "../assets/offroad/icon_network.png",
+                                    this));
+  }
 
   ParamControl *record_toggle = new ParamControl("RecordFront",
                                                  "Record and Upload Driver Camera",
@@ -69,19 +70,18 @@ TogglesPanel::TogglesPanel(QWidget *parent) : QWidget(parent) {
                                    "../assets/offroad/icon_road.png",
                                    this));
 
-#ifdef QCOM2
-  toggles.append(new ParamControl("EnableWideCamera",
-                                  "Enable use of Wide Angle Camera",
-                                  "Use wide angle camera for driving and ui. Only takes effect after reboot.",
-                                  "../assets/offroad/icon_openpilot.png",
-                                  this));
-  toggles.append(new ParamControl("EnableLteOnroad",
-                                  "Enable LTE while onroad",
-                                  "",
-                                  "../assets/offroad/icon_network.png",
-                                  this));
-
-#endif
+  if (Hardware::TICI()) {
+    toggles.append(new ParamControl("EnableWideCamera",
+                                    "Enable use of Wide Angle Camera",
+                                    "Use wide angle camera for driving and ui. Only takes effect after reboot.",
+                                    "../assets/offroad/icon_openpilot.png",
+                                    this));
+    toggles.append(new ParamControl("EnableLteOnroad",
+                                    "Enable LTE while onroad",
+                                    "",
+                                    "../assets/offroad/icon_network.png",
+                                    this));
+  }
 
   bool record_lock = Params().getBool("RecordFrontLock");
   record_toggle->setEnabled(!record_lock);
@@ -309,6 +309,7 @@ void SettingsWindow::showEvent(QShowEvent *event) {
   for (auto &[name, panel] : panels) {
     QPushButton *btn = new QPushButton(name);
     btn->setCheckable(true);
+    btn->setChecked(nav_btns->buttons().size() == 0);
     btn->setStyleSheet(R"(
       QPushButton {
         color: grey;

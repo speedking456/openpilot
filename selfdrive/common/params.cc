@@ -1,21 +1,24 @@
-#include "common/params.h"
+#include "selfdrive/common/params.h"
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif  // _GNU_SOURCE
 
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <dirent.h>
+#include <string.h>
 #include <sys/file.h>
 #include <sys/stat.h>
-#include <mutex>
+#include <unistd.h>
+
 #include <csignal>
-#include <string.h>
+#include <mutex>
 #include <unordered_map>
-#include "common/util.h"
-#include "common/swaglog.h"
+
+#include "selfdrive/common/swaglog.h"
+#include "selfdrive/common/util.h"
+#include "selfdrive/hardware/hw.h"
 
 // keep trying if x gets interrupted by a signal
 #define HANDLE_EINTR(x)                                       \
@@ -30,13 +33,9 @@
 
 namespace {
 
-#if defined(QCOM) || defined(QCOM2)
-const std::string default_params_path = "/data/params";
-const std::string persistent_params_path = "/persist/comma/params";
-#else
-const std::string default_params_path = util::getenv_default("HOME", "/.comma/params", "/data/params");
-const std::string persistent_params_path = default_params_path;
-#endif
+const std::string default_params_path = Hardware::PC() ? util::getenv_default("HOME", "/.comma/params", "/data/params")
+                                                       : "/data/params";
+const std::string persistent_params_path = Hardware::PC() ? default_params_path : "/persist/comma/params";
 
 volatile sig_atomic_t params_do_exit = 0;
 void params_sig_handler(int signal) {
