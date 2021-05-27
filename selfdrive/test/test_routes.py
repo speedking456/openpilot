@@ -371,6 +371,9 @@ routes: dict = {
     'enableCamera': True,
     'enableDsu': False,
   },
+  "f33ec5db3dc94da9|2021-05-22--18-19-45": {
+    'carFingerprint': TOYOTA.LEXUS_UXH_TSS2,
+  },
   # TODO: missing some combos for highlander
   "0a302ffddbb3e3d3|2020-02-08--16-19-08": {
     'carFingerprint': TOYOTA.HIGHLANDER_TSS2,
@@ -437,6 +440,10 @@ routes: dict = {
   },
   "90434ff5d7c8d603|2021-03-15--12-07-31": {
     'carFingerprint': VOLKSWAGEN.SKODA_KODIAQ_MK1,
+    'enableCamera': True,
+  },
+  "66e5edc3a16459c5|2021-05-25--19-00-29": {
+    'carFingerprint': VOLKSWAGEN.SKODA_OCTAVIA_MK3,
     'enableCamera': True,
   },
   "026b6d18fba6417f|2021-03-26--09-17-04": {
