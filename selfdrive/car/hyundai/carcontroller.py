@@ -41,6 +41,7 @@ class CarController():
     self.car_fingerprint = CP.carFingerprint
     self.steer_rate_limited = False
     self.last_resume_frame = 0
+    self.vdiff = 0
 
   def update(self, enabled, CS, frame, actuators, pcm_cancel_cmd, visual_alert,
              left_lane, right_lane, left_lane_depart, right_lane_depart):
@@ -73,8 +74,17 @@ class CarController():
 
     if pcm_cancel_cmd:
       can_sends.append(create_clu11(self.packer, frame, CS.clu11, Buttons.CANCEL))
+    # use lead distance for resume (ONLY ON VEHICLES WITH SCC on CAN)  
+    elif self.car_fingerprint in [CAR.KIA_SELTOS, CAR.SONATA, CAR.KIA_OPTIMA]:
+      elif CS.out.cruiseState.standstill and CS.vrelative > 0:
+        self.vdiff += (CS.vrelative - self.vdiff)
+        if (frame - self.last_resume_frame)  * DT_CTRL > 0.1 and (self.vdiff > .5 or CS.lead_distance > 6.):
+          can_sends.extend([create_clu11(self.packer, frame, CS.clu11, Buttons.RES_ACCEL)] * 25)
+          self.last_resume_frame = frame
+      else:
+        self.vdiff = 0.
     elif CS.out.cruiseState.standstill:
-      # send resume at a max freq of 10Hz - fix with stop n go hack
+      # send resume at a max freq of 10Hz - remove flickering by adding vehicle above.
       if (frame - self.last_resume_frame) * DT_CTRL > 0.1:
         # send 25 messages at a time to increases the likelihood of resume being accepted
         can_sends.extend([create_clu11(self.packer, frame, CS.clu11, Buttons.RES_ACCEL)] * 25)
