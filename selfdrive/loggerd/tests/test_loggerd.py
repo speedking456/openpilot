@@ -39,17 +39,19 @@ class TestLoggerd(unittest.TestCase):
     return log_dirs[-1]
 
   def _get_log_dir(self, x):
-    for p in x.split(' '):
-      path = Path(p.strip())
-      if path.is_dir():
-        return path
+    for l in x.splitlines():
+      for p in l.split(' '):
+        path = Path(p.strip())
+        if path.is_dir():
+          return path
     return None
 
   def _get_log_fn(self, x):
-    for p in x.split(' '):
-      path = Path(p.strip())
-      if path.is_file():
-        return path
+    for l in x.splitlines():
+      for p in l.split(' '):
+        path = Path(p.strip())
+        if path.is_file():
+          return path
     return None
 
   def _gen_bootlog(self):
@@ -207,7 +209,7 @@ class TestLoggerd(unittest.TestCase):
         self.assertEqual(recv_cnt, 0, f"got {recv_cnt} {s} msgs in qlog")
       else:
         # check logged message count matches decimation
-        expected_cnt = len(msgs) // service_list[s].decimation
+        expected_cnt = (len(msgs) - 1) // service_list[s].decimation + 1
         self.assertEqual(recv_cnt, expected_cnt, f"expected {expected_cnt} msgs for {s}, got {recv_cnt}")
 
   def test_rlog(self):

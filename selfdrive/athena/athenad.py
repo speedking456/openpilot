@@ -54,7 +54,7 @@ def handle_long_poll(ws):
 
   threads = [
     threading.Thread(target=ws_recv, args=(ws, end_event), name='ws_recv'),
-    threading.Thread(target=ws_send, args=(ws, end_event), name='wc_send'),
+    threading.Thread(target=ws_send, args=(ws, end_event), name='ws_send'),
     threading.Thread(target=upload_handler, args=(end_event,), name='upload_handler'),
     threading.Thread(target=log_handler, args=(end_event,), name='log_handler'),
   ] + [
@@ -116,7 +116,7 @@ def _do_upload(upload_item):
     return requests.put(upload_item.url,
                         data=f,
                         headers={**upload_item.headers, 'Content-Length': str(size)},
-                        timeout=10)
+                        timeout=30)
 
 
 # security: user should be able to request any message from their car
@@ -209,6 +209,13 @@ def cancelUpload(upload_id):
   return {"success": 1}
 
 
+@dispatcher.add_method
+def primeActivated(active):
+  dongle_id = Params().get("DongleId", encoding='utf-8')
+  api = Api(dongle_id)
+  manage_tokens(api)
+
+
 def startLocalProxy(global_end_event, remote_ws_uri, local_port):
   try:
     if local_port not in LOCAL_PORT_WHITELIST:
@@ -265,6 +272,11 @@ def getSimInfo():
 @dispatcher.add_method
 def getNetworkType():
   return HARDWARE.get_network_type()
+
+
+@dispatcher.add_method
+def getNetworks():
+  return HARDWARE.get_networks()
 
 
 @dispatcher.add_method
@@ -424,7 +436,7 @@ def ws_recv(ws, end_event):
     except WebSocketTimeoutException:
       ns_since_last_ping = int(sec_since_boot() * 1e9) - last_ping
       if ns_since_last_ping > RECONNECT_TIMEOUT_S * 1e9:
-        cloudlog.exception("athenad.wc_recv.timeout")
+        cloudlog.exception("athenad.ws_recv.timeout")
         end_event.set()
     except Exception:
       cloudlog.exception("athenad.ws_recv.exception")
@@ -479,8 +491,7 @@ def main():
       ws = create_connection(ws_uri,
                              cookie="jwt=" + api.get_token(),
                              enable_multithread=True,
-                             timeout=1.0)
-      ws.settimeout(1)
+                             timeout=30.0)
       cloudlog.event("athenad.main.connected_ws", ws_uri=ws_uri)
 
       manage_tokens(api)
@@ -492,6 +503,8 @@ def main():
     except (ConnectionError, TimeoutError, WebSocketException):
       conn_retries += 1
       params.delete("LastAthenaPingTime")
+      if TICI:
+        cloudlog.exception("athenad.main.exception2")
     except Exception:
       cloudlog.exception("athenad.main.exception")
 

@@ -1,14 +1,13 @@
 #pragma once
 
-#include <map>
-
-#include <QSoundEffect>
-#include <QtWidgets>
+#include <QOpenGLFunctions>
+#include <QOpenGLWidget>
+#include <QStackedLayout>
+#include <QWidget>
 
 #include "cereal/gen/cpp/log.capnp.h"
-#include "selfdrive/hardware/hw.h"
-#include "selfdrive/ui/ui.h"
 #include "selfdrive/ui/qt/qt_window.h"
+#include "selfdrive/ui/ui.h"
 
 typedef cereal::CarControl::HUDControl::AudibleAlert AudibleAlert;
 
@@ -18,36 +17,16 @@ class OnroadAlerts : public QWidget {
   Q_OBJECT
 
 public:
-  OnroadAlerts(QWidget *parent = 0);
+  OnroadAlerts(QWidget *parent = 0) {};
 
 protected:
   void paintEvent(QPaintEvent*) override;
 
 private:
-  void stopSounds();
-  void playSound(AudibleAlert alert);
-  void updateAlert(const QString &t1, const QString &t2, float blink_rate,
-                   const std::string &type, cereal::ControlsState::AlertSize size, AudibleAlert sound);
-
-  std::map<AudibleAlert, std::pair<QString, bool>> sound_map {
-    // AudibleAlert, (file path, inf loop)
-    {AudibleAlert::CHIME_DISENGAGE, {"../assets/sounds/disengaged.wav", false}},
-    {AudibleAlert::CHIME_ENGAGE, {"../assets/sounds/engaged.wav", false}},
-    {AudibleAlert::CHIME_WARNING1, {"../assets/sounds/warning_1.wav", false}},
-    {AudibleAlert::CHIME_WARNING2, {"../assets/sounds/warning_2.wav", false}},
-    {AudibleAlert::CHIME_WARNING2_REPEAT, {"../assets/sounds/warning_2.wav", true}},
-    {AudibleAlert::CHIME_WARNING_REPEAT, {"../assets/sounds/warning_repeat.wav", true}},
-    {AudibleAlert::CHIME_ERROR, {"../assets/sounds/error.wav", false}},
-    {AudibleAlert::CHIME_PROMPT, {"../assets/sounds/error.wav", false}}
-  };
-
   QColor bg;
-  float volume = Hardware::MIN_VOLUME;
-  std::map<AudibleAlert, QSoundEffect> sounds;
-  float blinking_rate = 0;
-  QString text1, text2;
-  std::string alert_type;
-  cereal::ControlsState::AlertSize alert_size;
+  Alert alert;
+
+  void updateAlert(Alert a);
 
 public slots:
   void updateState(const UIState &s);
@@ -86,7 +65,7 @@ public:
 private:
   OnroadAlerts *alerts;
   NvgWindow *nvg;
-  QStackedLayout *layout;
+  QStackedLayout *main_layout;
   QHBoxLayout* split;
 
 signals:
